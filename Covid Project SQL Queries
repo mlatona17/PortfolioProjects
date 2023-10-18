@@ -1,0 +1,115 @@
+###Looking at Total Cases vs Total Deaths
+###Shows likelihood of dying if you contract covid in your country
+SELECT
+  location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 AS DeathPercentage
+FROM 
+  `alex-covid-project-402417.Covid_Dataset.Covid_Deaths`
+WHERE
+  location = 'United States'
+ORDER BY 1,2
+
+
+###Looking at Total Cases vs Population
+###Shows what percentage of population got Covid
+SELECT
+  location, date, population, total_cases, (total_cases/population)*100 AS PercentPopulationInfected
+FROM 
+  `alex-covid-project-402417.Covid_Dataset.Covid_Deaths`
+WHERE
+  location = 'United States'
+ORDER BY 1,2
+
+
+###Looking at Countries with highest infection rate compared to population
+SELECT
+  location, population, MAX(total_cases) AS HighestInfectionCount, MAX((total_cases/population)*100) AS PercentPopulationInfected
+FROM 
+  `alex-covid-project-402417.Covid_Dataset.Covid_Deaths`
+GROUP BY 
+  location, population
+ORDER BY 
+  PercentPopulationInfected DESC; -- Always remember semicolon
+
+
+###Showing countries with highest death count
+SELECT
+  location, MAX(total_deaths) AS TotalDeathCount
+FROM 
+  `alex-covid-project-402417.Covid_Dataset.Covid_Deaths`
+WHERE 
+  continent is not null
+GROUP BY 
+  location
+ORDER BY 
+  TotalDeathCount DESC;
+
+
+###LETS BREAK THINGS DOWN BY CONTINENT
+###Showing continents with highest death count per population
+SELECT
+  continent, MAX(total_deaths) AS TotalDeathCount
+FROM 
+  `alex-covid-project-402417.Covid_Dataset.Covid_Deaths`
+WHERE 
+  continent is not null
+GROUP BY 
+  continent
+ORDER BY 
+  TotalDeathCount DESC;
+
+###Global Numbers
+SELECT
+  SUM(new_cases) AS total_cases, SUM(cast(new_deaths as int)) AS total_deaths, (SUM(cast(new_deaths as int))/SUM(new_cases))*100 AS DeathPercentage
+FROM 
+  `alex-covid-project-402417.Covid_Dataset.Covid_Deaths`
+WHERE 
+  continent is not null
+--GROUP BY
+ -- date
+ORDER BY 
+  1,2;
+
+
+###Total Population vs Vaccinations
+###Shows Percentage of Population that has received at least one Covid Vaccine
+SELECT
+  dea.continent, dea.location,dea.date, dea.population, vac.new_vaccinations, SUM(vac.new_vaccinations) OVER (partition by dea.location ORDER BY dea.location, dea.date) AS RollingPeopleVaccinated --- provides a running total of new vaxes segmented by location
+--,(RollingPeopleVaccinated/population)*100
+FROM
+  `alex-covid-project-402417.Covid_Dataset.Covid_Deaths` AS dea
+JOIN
+  `alex-covid-project-402417.Covid_Dataset.Covid_Vaccinations` AS vac
+  ON dea.location = vac.location
+  AND dea.date = vac.date
+WHERE
+  dea.continent is not null
+ORDER BY
+  2,3
+
+
+###Using CTE
+WITH 
+  PopvsVac AS
+(
+  SELECT
+    dea.continent, 
+    dea.location,
+    dea.date,
+    dea.population,
+    vac.new_vaccinations,
+    SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) AS RollingPeopleVaccinated
+  FROM
+    `alex-covid-project-402417.Covid_Dataset.Covid_Deaths` AS dea
+  JOIN
+    `alex-covid-project-402417.Covid_Dataset.Covid_Vaccinations` AS vac
+    ON dea.location = vac.location
+    AND dea.date = vac.date
+  WHERE
+    dea.continent IS NOT NULL
+)
+##Calculating and select the result
+SELECT
+  *, 
+  (RollingPeopleVaccinated/Population)*100
+FROM
+  PopvsVac;
